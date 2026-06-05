@@ -12,7 +12,7 @@ import * as XLSX from "xlsx";
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxHSzU3eZQJydXFT_kpqmISAISC40WXYFkjLNIBRMNKL5M3qQTx-fot6c_lsat9UTki/exec";
 
 // ─── Helpers ─────────────────────────────────────────────────────
-const IS_OFFLINE = APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbxHSzU3eZQJydXFT_kpqmISAISC40WXYFkjLNIBRMNKL5M3qQTx-fot6c_lsat9UTki/exec";
+const IS_OFFLINE = APPS_SCRIPT_URL === "GANTI_DENGAN_URL_APPS_SCRIPT_ANDA";
 const fmt = (n) => new Intl.NumberFormat("id-ID", { style:"currency", currency:"IDR", maximumFractionDigits:0 }).format(n||0);
 const fmtShort = (n) => {
   n = parseFloat(n)||0;
