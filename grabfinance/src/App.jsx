@@ -9,10 +9,10 @@ import * as XLSX from "xlsx";
 // ║  GANTI URL INI DENGAN URL DEPLOYMENT GOOGLE APPS SCRIPT      ║
 // ║  Contoh: https://script.google.com/macros/s/AKfycb.../exec  ║
 // ╚══════════════════════════════════════════════════════════════╝
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyc8dQTg22xdJN9r_zkEVwTiAHckZhGiKfBkuO7EwDQ1hnzoXAomWnCSRYhFkoyZLwP/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywtm4HE51UZw2_pzurbjG24KvxbIQUlfRy3ccPVjEWk4A_1IZkPYKL-TkXsqOXFYMf/exec";
 
 // ─── Helpers ─────────────────────────────────────────────────────
-const IS_OFFLINE = APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbyc8dQTg22xdJN9r_zkEVwTiAHckZhGiKfBkuO7EwDQ1hnzoXAomWnCSRYhFkoyZLwP/exec";
+const IS_OFFLINE = APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbywtm4HE51UZw2_pzurbjG24KvxbIQUlfRy3ccPVjEWk4A_1IZkPYKL-TkXsqOXFYMf/exec";
 const fmt = (n) => new Intl.NumberFormat("id-ID", { style:"currency", currency:"IDR", maximumFractionDigits:0 }).format(n||0);
 const fmtShort = (n) => {
   n = parseFloat(n)||0;
