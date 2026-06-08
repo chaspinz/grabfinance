@@ -139,56 +139,87 @@ export default function App() {
     toastTimer.current = setTimeout(()=>setToast(null),3500);
   },[]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (showLoad=true) => {
+    if(showLoad) setLoading(true);
     try {
       const d = await api.getAll();
-      const pi = d.pemasukan||[];
-      const po = d.pengeluaran||[];
-      setPi(pi.length ? pi : IS_OFFLINE ? SAMPLE_PI : pi);
-      setPo(po.length ? po : IS_OFFLINE ? SAMPLE_PO : po);
+      const piData = d.pemasukan||[];
+      const poData = d.pengeluaran||[];
+      setPi(piData.length ? piData : IS_OFFLINE ? SAMPLE_PI : piData);
+      setPo(poData.length ? poData : IS_OFFLINE ? SAMPLE_PO : poData);
+      LS.set("gf_pi", piData);
+      LS.set("gf_po", poData);
     } catch(e) {
-      // Jika gagal fetch, pakai cache lokal
       const cached_pi = LS.get("gf_pi");
       const cached_po = LS.get("gf_po");
       setPi(cached_pi.length ? cached_pi : SAMPLE_PI);
       setPo(cached_po.length ? cached_po : SAMPLE_PO);
-      showToast("📶 Menggunakan data cache (offline)","warn");
+      if(showLoad) showToast("📶 Menggunakan data cache (offline)","warn");
     }
-    setLoading(false);
+    if(showLoad) setLoading(false);
   },[showToast]);
 
   useEffect(()=>{ loadData(); },[loadData]);
 
-  // ─ Submit ──────────────────────────────────────────────────────
+  // ─ Submit optimistic update ────────────────────────────────────
   const submitIncome = async () => {
     if(!fI.uraian||!fI.jumlah) return showToast("Lengkapi semua field ⚠️","warn");
+    if(syncing) return;
+    const jumlah = parseFloat(String(fI.jumlah).replace(/\D/g,""));
+    const tempId = "temp_"+genId();
+    const newItem = { ID:tempId, Tanggal:fI.tanggal, Uraian:fI.uraian, Jumlah:jumlah };
+    setPi(prev => [...prev, newItem]);
+    setFI({tanggal:todayStr(),uraian:"",jumlah:""});
+    showToast("✅ Pemasukan disimpan!");
     setSyncing(true);
-    const payload = { tanggal:fI.tanggal, uraian:fI.uraian, jumlah:parseFloat(String(fI.jumlah).replace(/\D/g,"")) };
     try {
-      await api.addPemasukan(payload);
-      await loadData();
-      setFI({tanggal:todayStr(),uraian:"",jumlah:""});
-      showToast("✅ Pemasukan berhasil disimpan!");
-    } catch { showToast("❌ Gagal menyimpan","error"); }
+      const payload = { tanggal:newItem.Tanggal, uraian:newItem.Uraian, jumlah:newItem.Jumlah };
+      const res = await api.addPemasukan(payload);
+      if(res && res.id) setPi(prev => prev.map(x => x.ID===tempId ? {...x, ID:res.id} : x));
+      loadData(false);
+    } catch {
+      setPi(prev => prev.filter(x => x.ID!==tempId));
+      showToast("❌ Gagal menyimpan, coba lagi","error");
+    }
     setSyncing(false);
   };
 
   const submitExpense = async () => {
     if(!fE.uraian||!fE.jumlah) return showToast("Lengkapi semua field ⚠️","warn");
+    if(syncing) return;
+    const jumlah = parseFloat(String(fE.jumlah).replace(/\D/g,""));
+    const tempId = "temp_"+genId();
+    const newItem = { ID:tempId, Tanggal:fE.tanggal, Kategori:fE.kategori, Uraian:fE.uraian, Jumlah:jumlah };
+    setPo(prev => [...prev, newItem]);
+    setFE({tanggal:todayStr(),kategori:"Operasional",uraian:"",jumlah:""});
+    showToast("✅ Pengeluaran disimpan!");
     setSyncing(true);
-    const payload = { tanggal:fE.tanggal, kategori:fE.kategori, uraian:fE.uraian, jumlah:parseFloat(String(fE.jumlah).replace(/\D/g,"")) };
     try {
-      await api.addPengeluaran(payload);
-      await loadData();
-      setFE({tanggal:todayStr(),kategori:"Operasional",uraian:"",jumlah:""});
-      showToast("✅ Pengeluaran berhasil disimpan!");
-    } catch { showToast("❌ Gagal menyimpan","error"); }
+      const payload = { tanggal:newItem.Tanggal, kategori:newItem.Kategori, uraian:newItem.Uraian, jumlah:newItem.Jumlah };
+      const res = await api.addPengeluaran(payload);
+      if(res && res.id) setPo(prev => prev.map(x => x.ID===tempId ? {...x, ID:res.id} : x));
+      loadData(false);
+    } catch {
+      setPo(prev => prev.filter(x => x.ID!==tempId));
+      showToast("❌ Gagal menyimpan, coba lagi","error");
+    }
     setSyncing(false);
   };
 
-  const delI = async (id) => { if(!confirm("Hapus data ini?"))return; setSyncing(true); await api.deletePemasukan(id); await loadData(); showToast("🗑️ Data dihapus"); setSyncing(false); };
-  const delE = async (id) => { if(!confirm("Hapus data ini?"))return; setSyncing(true); await api.deletePengeluaran(id); await loadData(); showToast("🗑️ Data dihapus"); setSyncing(false); };
+  const delI = async (id) => {
+    if(!confirm("Hapus data ini?"))return;
+    setPi(prev=>prev.filter(x=>x.ID!==id));
+    showToast("🗑️ Data dihapus");
+    try { await api.deletePemasukan(id); loadData(false); }
+    catch { showToast("❌ Gagal hapus","error"); loadData(false); }
+  };
+  const delE = async (id) => {
+    if(!confirm("Hapus data ini?"))return;
+    setPo(prev=>prev.filter(x=>x.ID!==id));
+    showToast("🗑️ Data dihapus");
+    try { await api.deletePengeluaran(id); loadData(false); }
+    catch { showToast("❌ Gagal hapus","error"); loadData(false); }
+  };
 
   // ─ Computed ───────────────────────────────────────────────────
   const stats = useMemo(()=>{
@@ -424,7 +455,7 @@ export default function App() {
                     <YAxis tickFormatter={fmtShort} tick={{fill:"#475569",fontSize:9}} axisLine={false}/>
                     <Tooltip {...TT}/>
                     <Bar dataKey="avg" name="Rata-rata" radius={[6,6,0,0]}>
-                      {dayPred.map((_,i)=><Cell key={i} fill={["#0ea5e9","#6366f1","#8b5cf6","#cbd5e1","#cbd5e1","#cbd5e1","#cbd5e1"][i]}/>)}
+                      {dayPred.map((_,i)=><Cell key={i} fill={["#38bdf8","#6366f1","#8b5cf6","#1e3a5f","#1e3a5f","#1e3a5f","#1e3a5f"][i]}/>)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -574,7 +605,7 @@ export default function App() {
               <div className="card" style={{padding:"12px 16px",marginBottom:18,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                 <span style={{fontSize:10,color:"#94a3b8",fontWeight:700,letterSpacing:.5}}>FILTER:</span>
                 {["bulan","tahun","semua"].map(p=>(
-                  <button key={p} onClick={()=>setFilterPeriod(p)} style={{padding:"5px 13px",borderRadius:8,border:`1px solid ${filterPeriod===p?"#0ea5e9":"#e2e8f0"}`,background:filterPeriod===p?"rgba(14,165,233,.12)":"transparent",color:filterPeriod===p?"#38bdf8":"#64748b",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}}>
+                  <button key={p} onClick={()=>setFilterPeriod(p)} style={{padding:"5px 13px",borderRadius:8,border:`1px solid ${filterPeriod===p?"#0ea5e9":"#1e3a5f"}`,background:filterPeriod===p?"rgba(14,165,233,.12)":"transparent",color:filterPeriod===p?"#38bdf8":"#64748b",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:700}}>
                     {p==="bulan"?"Per Bulan":p==="tahun"?"Per Tahun":"Semua"}
                   </button>
                 ))}
